@@ -45,7 +45,7 @@ Files Required to make a complete program -
 //  Fast clock --- 1 hour = 5 min = 1/12 of an  hour
 //     one millie -- 1ms
 //
-#define SpeedFactor 30    // = times faster
+#define SpeedFactor 1    // = times faster -> DO NOT CHANGE FOR ISS; KEEP AT 1
 //
 //
 //////////////////////////////////////////////////////////////////////////

@@ -115,6 +115,9 @@ void Flying() {
   //***********************************************************************
   //***********************************************************************
   //
+
+delay(one_day / SpeedFactor ); //24 hour wait before project
+
   while (1) {
     //
     //----------- Test for terminal abort command (x) from flying ----------------------

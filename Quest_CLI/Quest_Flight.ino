@@ -53,6 +53,7 @@ Files Required to make a complete program -
 #define one_sec   1000                       //one second = 1000 millis
 #define one_min   60*one_sec                 // one minute of time
 #define one_hour  60*one_min                 // one hour of time
+#define one_day   24*one_hour               //one day of time
 //
 //
 #define TimeEvent1_time     ((one_min * 60) / SpeedFactor)      //take a photo time

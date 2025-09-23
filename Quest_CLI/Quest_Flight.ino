@@ -45,7 +45,7 @@ Files Required to make a complete program -
 //  Fast clock --- 1 hour = 5 min = 1/12 of an  hour
 //     one millie -- 1ms
 //
-#define SpeedFactor 1    // = times faster -> DO NOT CHANGE FOR ISS; KEEP AT 1
+#define SpeedFactor 1    // = times faster -> DO NOT CHANGE FOR ISS; KEEP AT 1 UNLESS FOR TESTING
 //
 //
 //////////////////////////////////////////////////////////////////////////
@@ -116,7 +116,7 @@ void Flying() {
   //***********************************************************************
   //
 
-delay(one_day / SpeedFactor ); //24 hour wait before project
+delay(one_day / SpeedFactor); //24 hour wait before project
 
   while (1) {
     //

@@ -56,9 +56,9 @@ Files Required to make a complete program -
 #define one_day   24*one_hour               //one day of time
 //
 //
-#define TimeEvent1_time     ((one_min * 60) / SpeedFactor)      //take a photo time
-#define Sensor1time         ((one_min * 15) / SpeedFactor)      //Time to make Sensor1 readings 
-#define Sensor2time         ((one_sec * 20)  / SpeedFactor) 
+#define TimeEvent1_time     ((one_hour * 12) / SpeedFactor)      //take a photo time
+#define Sensor1time         ((one_min * 15) / SpeedFactor)      //Time to take pH readings (change this later after testing)
+#define Sensor2time         ((one_sec * 20)  / SpeedFactor)     //Time to take photocell readings (change this later after testing)
 //
   int sensor1count = 0;     //counter of times the sensor has been accessed
   int sensor2count = 0;     //counter of times the sensor has been accessed

@@ -60,8 +60,9 @@ Files Required to make a complete program -
 #define one_day   24*one_hour               //one day of time
 //
 //
-#define TimeEvent1_time     ((one_hour * 12) / SpeedFactor)      //main expirement time
-#define Sensor1time         ((one_min * 30) / SpeedFactor)      //Time to pump broth(not yet known)
+//#define TimeEvent1_time     ((one_hour * 12) / SpeedFactor)      //main expirement time(ot sure if I need this)
+#define TimeEvent1_time     ((one_sec * 10) / SpeedFactor)      //pump broth into chamber
+#define Sensor1time         ((one_sec * 10)  / SpeedFactor)     //Time to pump broth(not yet known)
 #define Sensor2time         ((one_sec * 10)  / SpeedFactor)     //Time for pH readings (not known)
 //
   int sensor1count = 0;     //counter of times the sensor has been accessed

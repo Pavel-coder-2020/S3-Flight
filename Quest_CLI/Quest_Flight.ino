@@ -38,9 +38,10 @@ Files Required to make a complete program -
 
 #include "Quest_Flight.h"
 #include "Quest_CLI.h"
-#include <Wire.h>                   
-#include <Ezo_i2c.h>                
-#include <Ezo_i2c_util.h> 
+#include <sequencer2.h>         //double check if you need this
+#include <Wire.h>                //double check if you need this   
+#include <Ezo_i2c.h>             //double check if you need this   
+#include <Ezo_i2c_util.h>       //double check if you need this   
 
 //////////////////////////////////////////////////////////////////////////
 //    This defines the timers used to control flight operations
@@ -59,9 +60,9 @@ Files Required to make a complete program -
 #define one_day   24*one_hour               //one day of time
 //
 //
-#define TimeEvent1_time     ((one_hour * 12) / SpeedFactor)      //take a photo time
-#define Sensor1time         ((one_min * 15) / SpeedFactor)      //Time to take pH readings (change this later after testing)
-#define Sensor2time         ((one_sec * 20)  / SpeedFactor)     //Time to take photocell readings (change this later after testing)
+#define TimeEvent1_time     ((one_hour * 12) / SpeedFactor)      //main expirement time
+#define Sensor1time         ((one_min * 30) / SpeedFactor)      //Time to pump broth(not yet known)
+#define Sensor2time         ((one_sec * 10)  / SpeedFactor)     //Time for pH readings (not known)
 //
   int sensor1count = 0;     //counter of times the sensor has been accessed
   int sensor2count = 0;     //counter of times the sensor has been accessed

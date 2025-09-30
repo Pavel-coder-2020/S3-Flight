@@ -38,6 +38,9 @@ Files Required to make a complete program -
 
 #include "Quest_Flight.h"
 #include "Quest_CLI.h"
+#include <Wire.h>                   
+#include <Ezo_i2c.h>                
+#include <Ezo_i2c_util.h> 
 
 //////////////////////////////////////////////////////////////////////////
 //    This defines the timers used to control flight operations

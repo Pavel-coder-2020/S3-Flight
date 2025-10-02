@@ -60,7 +60,7 @@ Files Required to make a complete program -
 #define one_day   24*one_hour               //one day of time
 //
 //
-//#define TimeEvent1_time     ((one_hour * 12) / SpeedFactor)      //main expirement time(ot sure if I need this)
+//#define TimeEvent1_time     ((one_hour * 12) / SpeedFactor)      //main expirement time(not sure if I need this)
 #define TimeEvent1_time     ((one_sec * 10) / SpeedFactor)      //pump broth into chamber
 #define Sensor1time         ((one_sec * 10)  / SpeedFactor)     //Time to pump broth(not yet known)
 #define Sensor2time         ((one_sec * 10)  / SpeedFactor)     //Time for pH readings (not known)
@@ -167,6 +167,36 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     }                                               //end of TimeEvent1_time
     //------------------------------------------------------------------
     //
+ //*********** Timed Event 1 test ***************************************
+//
+    //  this test if TimeEvent2 time has come
+    //  See above for TimeEvent2_time settings between this event
+    //
+    if ((millis() - TimeEvent2) > TimeEvent2_time) {//pump broth into chambers ONCE
+      TimeEvent2 = millis();                    //yes is time now reset TimeEvent2
+      // digitalWrite(0, HIGH); 
+      // for (int i = 0; i < 20; i++) { 
+      //   cmd_takeSphoto();                [this is just example code]
+      //   delay(12000); /
+      // }
+      // digitalWrite(0, LOW);
+    }                                               //end of TimeEvent2_time
+    //------------------------------------------------------------------
+    if ((millis() - TimeEvent3) > TimeEvent3_time) {//pH sensor readings
+      TimeEvent3 = millis();                    //yes is time now reset TimeEvent3
+      // digitalWrite(1, HIGH); 
+      // delay(1000);                         [this is just example code]
+      // analogWrite(A0, 4750);
+    }
+    //------------------------------------------------------------------
+    if ((millis() - TimeEvent4) > TimeEvent4_time) {//photocell readings
+      TimeEvent4 = millis();                    //yes is time now reset TimeEvent4
+      // analogWrite(A0, 0);
+      // delay(1000);
+      // digitalWrite(2, HIGH);                 [this is just example code]
+      // delay(1000); 
+    }
+
 //*******************************************************************************
 //*********** One second counter timer will trigger every second ****************
 //*******************************************************************************
@@ -210,48 +240,48 @@ delay(one_day / SpeedFactor); //24 hour wait before project
        DotStarOff();
     }  // end of one second routine
 //
-//**********************************************************************
-//*********** Read Sensor1 Event read and add to text buffer************
-//**********************************************************************
-    //
-    if ((millis() - Sensor1Timer) > Sensor1time) {    //Is it time to read?
-      Sensor1Timer = millis();                        //Yes, lets read the sensor1
-      sensor1count++;
-      int value1 = sensor1count;              //sensor count number up from zero
-      int value2 = 55000;                     //SIMULATED SENSOR VALUE,need to calculate real value
-      int value3 = 14;                        //SIMULATED SENSOR VALUE,need to calculate real value
-      //
-      add2text(value1, value2, value3);       //add the values to the text buffer
-      //    
-    }     // End of Sensor1 time event
-    //
-//**********************************************************************
-//*********** Read Sensor2 Event read and add to text buffer************
-//*********** Test of filling the 30K data buffer for lots of data *****
-//********************************************************************** 
-    //  If it is event driven then remove the Sensor2Timer evvvvvend 
-    //  here to get the  data for the event 
-    //
-    if ((millis() - Sensor2Timer) > Sensor2time) {    //Is it time to read?
-      Sensor2Timer = millis();                        //Yes, lets read the sensor1
-      sensor2count++;
-      //
-      //  Here to calculate and store data
-      //
-      int Deadtime = millis()-Sensor2Deadmillis;      //time in millis sence last visit
-      Sensor2Deadmillis = millis();                   //set millis this visit
-      //
-      //**** now get ampli and SiPM *****
-      int ampli = 555;              //SIMULATED
-      int SiPM  = 888;              //SIMULATED
-      //***** end simulated *************
-      //
-      dataappend(sensor2count, ampli, SiPM, Deadtime);
-    }     // End of Sensor2Timer          
-  }       // End of while 
-}         //End nof Flighting
-//
-//
+// //**********************************************************************
+// //*********** Read Sensor1 Event read and add to text buffer************
+// //**********************************************************************
+//     //
+//     if ((millis() - Sensor1Timer) > Sensor1time) {    //Is it time to read?
+//       Sensor1Timer = millis();                        //Yes, lets read the sensor1
+//       sensor1count++;
+//       int value1 = sensor1count;              //sensor count number up from zero
+//       int value2 = 55000;                     //SIMULATED SENSOR VALUE,need to calculate real value
+//       int value3 = 14;                        //SIMULATED SENSOR VALUE,need to calculate real value
+//       //
+//       add2text(value1, value2, value3);       //add the values to the text buffer
+//       //    
+//     }     // End of Sensor1 time event
+//     //
+// //**********************************************************************
+// //*********** Read Sensor2 Event read and add to text buffer************
+// //*********** Test of filling the 30K data buffer for lots of data *****
+// //********************************************************************** 
+//     //  If it is event driven then remove the Sensor2Timer evvvvvend 
+//     //  here to get the  data for the event 
+//     //
+//     if ((millis() - Sensor2Timer) > Sensor2time) {    //Is it time to read?
+//       Sensor2Timer = millis();                        //Yes, lets read the sensor1
+//       sensor2count++;
+//       //
+//       //  Here to calculate and store data
+//       //
+//       int Deadtime = millis()-Sensor2Deadmillis;      //time in millis sence last visit
+//       Sensor2Deadmillis = millis();                   //set millis this visit
+//       //
+//       //**** now get ampli and SiPM *****
+//       int ampli = 555;              //SIMULATED
+//       int SiPM  = 888;              //SIMULATED
+//       //***** end simulated *************
+//       //
+//       dataappend(sensor2count, ampli, SiPM, Deadtime);
+//     }     // End of Sensor2Timer          
+//   }       // End of while 
+// }         //End nof Flighting
+// //
+// //
 //FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 //    This is a function to adds three values to the user_text_buffer
 //    Written specificy for 2023-2024 Team F, Team B,

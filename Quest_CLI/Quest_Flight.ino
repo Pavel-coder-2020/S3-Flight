@@ -172,7 +172,7 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     //  this test if TimeEvent2 time has come
     //  See above for TimeEvent2_time settings between this event
     //
-    if ((millis() - TimeEvent2) > TimeEvent2_time) {//pump broth into chambers ONCE and turn on buzzer ONCE for 10 seconds
+    if ((millis() - TimeEvent2) > TimeEvent2_time) {//pump broth into chambers ONCE and turn on both buzzers ONCE for 10 seconds
       TimeEvent2 = millis();                    //yes is time now reset TimeEvent2
       // digitalWrite(0, HIGH); 
       // for (int i = 0; i < 20; i++) { 
@@ -182,14 +182,14 @@ delay(one_day / SpeedFactor); //24 hour wait before project
       // digitalWrite(0, LOW);
     }                                               //end of TimeEvent2_time
     //------------------------------------------------------------------
-    if ((millis() - TimeEvent3) > TimeEvent3_time) {//pH sensor readings and take nophoto every pH sensor reading
+    if ((millis() - TimeEvent3) > TimeEvent3_time) {//pH sensor readings for each chamber and take nophoto 
       TimeEvent3 = millis();                    //yes is time now reset TimeEvent3
       // digitalWrite(1, HIGH); 
       // delay(1000);                         [this is just example code]
       // analogWrite(A0, 4750);
     }
     //------------------------------------------------------------------
-    if ((millis() - TimeEvent4) > TimeEvent4_time) {//turn on light and then photocell readings and then turn off light
+    if ((millis() - TimeEvent4) > TimeEvent4_time) {//turn on light for both and then photocell readings for both and then turn off light for both
       TimeEvent4 = millis();                    //yes is time now reset TimeEvent4
       // analogWrite(A0, 0);
       // delay(1000);

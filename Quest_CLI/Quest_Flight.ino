@@ -174,9 +174,13 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     //
     if ((millis() - TimeEvent2) > TimeEvent2_time) {//pump broth into chambers ONCE and turn on both buzzers ONCE for 10 seconds
       TimeEvent2 = millis();                    //yes is time now reset TimeEvent2
-      digitalWrite(A0, HIGH); //turn on pump(double check the pin if they are correctly labelled)
-      delay(45000);            //keep pump on for 45 seconds
-      digitalWrite(A0, LOW);  //turn pump off(double check the pin if they are correctly labelled)
+      digitalWrite(A0, HIGH); //turn on pump1(double check the pin if they are correctly labelled)
+      delay(45000);            //keep pump1 on for 45 seconds
+      digitalWrite(A0, LOW);  //turn pump1 off(double check the pin if they are correctly labelled)
+      delay(3000);            //wait 3 second
+      digitalWrite(A1, HIGH); //turn on pump2(double check the pin if they are correctly labelled)
+      delay(45000);            //keep pump2 on for 45 seconds
+      digitalWrite(A1, LOW);  //turn pump2 off(double check the pin if they are correctly labelled)
       delay(3000);            //wait 3 second
 
     }                                               //end of TimeEvent2_time
@@ -190,10 +194,7 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     //------------------------------------------------------------------
     if ((millis() - TimeEvent4) > TimeEvent4_time) {
       TimeEvent4 = millis();                    //yes is time now reset TimeEvent4
-      // analogWrite(A0, 0);
-      // delay(1000);
-      // digitalWrite(2, HIGH);                 [this is just example code]
-      // delay(1000); 
+
     }
 
 //*******************************************************************************

@@ -182,7 +182,9 @@ delay(one_day / SpeedFactor); //24 hour wait before project
       delay(45000);            //keep pump2 on for 45 seconds
       digitalWrite(A1, LOW);  //turn pump2 off(double check the pin if they are correctly labelled)
       delay(3000);            //wait 3 second
-
+      digitalWrite(13, HIGH); //turn on BOTH buzzers 
+      delay(15000);            //keep BOTH buzzers turned on for 15 seconds
+      digitalWrite(13, LOW);  //stop BOTH buzzers
     }                                               //end of TimeEvent2_time
     //------------------------------------------------------------------
     if ((millis() - TimeEvent3) > TimeEvent3_time) {//pH sensor readings for each chamber and take nophoto 

@@ -69,6 +69,8 @@ Files Required to make a complete program -
 #define TimeEvent3_time     ((one_sec * 30) / SpeedFactor)       // ph readings every 5 minutes
 #define PumpDuration        ((one_min * 1) / SpeedFactor)      // Time to run pumps
 #define BuzzerDuration      ((one_sec * 15) / SpeedFactor)      // Time to run buzzers
+#define OneDayPass     ((one_sec * 24) / SpeedFactor)
+
 //
   int sensor1count = 0;     //counter of times the sensor has been accessed
   int State =   0;          //FOR TESTING ONLY WILL SWITCH FROM SPI CAMERA TO SERIAL CAMERA EVERY HOUR

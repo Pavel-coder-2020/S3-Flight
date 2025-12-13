@@ -61,9 +61,11 @@ Files Required to make a complete program -
 //
 //
 //#define TimeEvent1_time     ((one_hour * 12) / SpeedFactor)      //main expirement time(not sure if I need this)
-#define TimeEvent1_time     ((one_sec * 10) / SpeedFactor)      //pump broth into chamber
-#define Sensor1time         ((one_sec * 10)  / SpeedFactor)     //Time to pump broth(not yet known)
-#define Sensor2time         ((one_sec * 10)  / SpeedFactor)     //Time for pH readings (not known)
+#define TimeEvent1_time     ((one_hour * 1) / SpeedFactor)      // Take photo every hour
+#define TimeEvent2_time     ((one_day * 1) / SpeedFactor)       // Initial activation after 24 hours
+#define TimeEvent3_time     ((one_sec * 30) / SpeedFactor)       // ph readings every 5 minutes
+#define PumpDuration        ((one_min * 1) / SpeedFactor)      // Time to run pumps
+#define BuzzerDuration      ((one_sec * 15) / SpeedFactor)      // Time to run buzzers
 //
   int sensor1count = 0;     //counter of times the sensor has been accessed
   int sensor2count = 0;     //counter of times the sensor has been accessed
@@ -152,7 +154,7 @@ delay(one_day / SpeedFactor); //24 hour wait before project
       if (State == 1){
           cmd_takeSpiphoto();         //Take SPI photo and send it
       }
-          //  no camera - Send a 30k of buffer datta in place of a photo to the output Queue
+          //  no camera - Send a 30k of buffer datta in place of a photo to the output Queue.                 change to no photo ->void dataappend(int counts,int ampli,int SiPM,int Deadtime) {          //entry, add line with values to databuffer
       if (State == 2){
           nophoto30K();               //Use photo buffer for data
       }
@@ -174,17 +176,10 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     //
     if ((millis() - TimeEvent2) > TimeEvent2_time) {//pump broth into chambers ONCE and turn on both buzzers ONCE for 10 seconds
       TimeEvent2 = millis();                    //yes is time now reset TimeEvent2
-      digitalWrite(A0, HIGH); //turn on pump1(double check the pin if they are correctly labelled)
-      delay(45000);            //keep pump1 on for 45 seconds
-      digitalWrite(A0, LOW);  //turn pump1 off(double check the pin if they are correctly labelled)
-      delay(3000);            //wait 3 second
-      digitalWrite(A1, HIGH); //turn on pump2(double check the pin if they are correctly labelled)
-      delay(45000);            //keep pump2 on for 45 seconds
-      digitalWrite(A1, LOW);  //turn pump2 off(double check the pin if they are correctly labelled)
-      delay(3000);            //wait 3 second
-      digitalWrite(13, HIGH); //turn on BOTH buzzers 
-      delay(15000);            //keep BOTH buzzers turned on for 15 seconds
-      digitalWrite(13, LOW);  //stop BOTH buzzers
+      digitalWrite(13, HIGH); //turn on pump1(double check the pin if they are correctly labelled)
+      digitalWrite(13, LOW);  //turn pump1 off(double check the pin if they are correctly labelled)
+      digitalWrite(12, HIGH); //turn on BOTH buzzers 
+      digitalWrite(12, LOW);  //stop BOTH buzzers
     }                                               //end of TimeEvent2_time
     //------------------------------------------------------------------
     if ((millis() - TimeEvent3) > TimeEvent3_time) {//pH sensor readings for each chamber and take nophoto 

@@ -41,7 +41,10 @@ Files Required to make a complete program -
 #include <sequencer2.h>         //double check if you need this
 #include <Wire.h>                //double check if you need this   
 #include <Ezo_i2c.h>             //double check if you need this   
-#include <Ezo_i2c_util.h>       //double check if you need this   
+#include <Ezo_i2c_util.h>       //double check if you need this  
+#define bothPumps IO7
+#define bothVibrationMotor IO6
+
 
 //////////////////////////////////////////////////////////////////////////
 //    This defines the timers used to control flight operations
@@ -83,10 +86,18 @@ Files Required to make a complete program -
 void Flying() {
   //
   Serial.println("\n\rRun flight program\n\r");
-  //
-  uint32_t TimeEvent1 = millis();               //set TimeEvent1 to effective 0
-  uint32_t Sensor1Timer = millis();             //clear sensor1Timer to effective 0
-  uint32_t Sensor2Timer = millis();             //clear sensor1Timer to effective 0
+
+  pinMode(bothPumps, OUTPUT);
+  pinMode(bothVibrationMotor, OUTPUT);
+  digitalWrite(bothPumps, LOW);    
+  digitalWrite(bothVibrationMotor, LOW);  
+
+  //DataCollection1=noPhoto
+  //DataCollection2=buzzer+pump
+  //DataCollection3=pH readings
+  uint32_t DataCollection1 = millis();               //set TimeEvent1 to effective 0
+  uint32_t DataCollection2 = millis();             //clear sensor1Timer to effective 0
+  uint32_t DataCollection3 = millis();             //clear sensor1Timer to effective 0
   uint32_t Sensor2Deadmillis = millis();        //clear mills for difference
   //
   uint32_t one_secTimer = millis();             //set happens every second

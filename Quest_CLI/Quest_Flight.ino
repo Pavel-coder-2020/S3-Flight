@@ -68,8 +68,9 @@ Files Required to make a complete program -
 #define BuzzerDuration      ((one_sec * 15) / SpeedFactor)      // Time to run buzzers
 //
   int sensor1count = 0;     //counter of times the sensor has been accessed
-  int sensor2count = 0;     //counter of times the sensor has been accessed
   int State =   0;          //FOR TESTING ONLY WILL SWITCH FROM SPI CAMERA TO SERIAL CAMERA EVERY HOUR
+  bool pumpActivated = false;  
+  bool buzzerActivated = false;  
 //
 ///////////////////////////////////////////////////////////////////////////
 /**

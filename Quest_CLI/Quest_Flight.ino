@@ -159,7 +159,8 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     if ((millis() - TimeEvent1) > TimeEvent1_time) {
       TimeEvent1 = millis();                    //yes is time now reset TimeEvent1
           //  Take a photo using the serial c329 camera and place file name in Queue
-      if (State == 0){      //which state ?             
+      if (State == 0){      //which state ?     
+          Serial.println("One day has passed.");     
           cmd_takeSphoto();            //Take serial photo and send it
       }
           //  Take a photo using the SPI c329 camera and place file name in Queue

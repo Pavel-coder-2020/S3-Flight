@@ -64,9 +64,9 @@ Files Required to make a complete program -
 //
 //
 //#define TimeEvent1_time     ((one_hour * 12) / SpeedFactor)      //main expirement time(not sure if I need this)
-#define TimeEvent1_time     ((one_hour * 1) / SpeedFactor)      // Take photo every hour
-#define TimeEvent2_time     ((one_day * 1) / SpeedFactor)       // Initial activation after 24 hours
-#define TimeEvent3_time     ((one_sec * 30) / SpeedFactor)       // ph readings every 5 minutes
+#define FirstDataCollection     ((one_sec * 90) / SpeedFactor)      // Take photo every hour
+#define SecondDataCollection     ((one_sec * 90) / SpeedFactor)       // Initial activation after 24 hours
+#define ThirdDataCollection     ((one_sec * 90) / SpeedFactor)       // ph readings every 5 minutes
 #define PumpDuration        ((one_min * 1) / SpeedFactor)      // Time to run pumps
 #define BuzzerDuration      ((one_sec * 15) / SpeedFactor)      // Time to run buzzers
 #define OneDayPass     ((one_sec * 24) / SpeedFactor)
@@ -76,6 +76,7 @@ Files Required to make a complete program -
   int State =   0;          //FOR TESTING ONLY WILL SWITCH FROM SPI CAMERA TO SERIAL CAMERA EVERY HOUR
   bool pumpActivated = false;  
   bool buzzerActivated = false;  
+  int counter = 0;
 //
 ///////////////////////////////////////////////////////////////////////////
 /**
@@ -100,6 +101,7 @@ void Flying() {
   uint32_t DataCollection1 = millis();               //set TimeEvent1 to effective 0
   uint32_t DataCollection2 = millis();             //clear sensor1Timer to effective 0
   uint32_t DataCollection3 = millis();             //clear sensor1Timer to effective 0
+  uint32_t OneDay = millis();               //set TimeEvent1 to effective 0             //clear sensor1Timer to effective 0
   uint32_t Sensor2Deadmillis = millis();        //clear mills for difference
   //
   uint32_t one_secTimer = millis();             //set happens every second
@@ -156,30 +158,14 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     //  this test if TimeEvent1 time has come
     //  See above for TimeEvent1_time settings between this event
     //
-    if ((millis() - TimeEvent1) > TimeEvent1_time) {
-      TimeEvent1 = millis();                    //yes is time now reset TimeEvent1
+    if ((millis() - OneDay) > OneDayPass) {
+      OneDay = millis();                    //yes is time now reset TimeEvent1
           //  Take a photo using the serial c329 camera and place file name in Queue
       if (State == 0){      //which state ?     
-          Serial.println("One day has passed.");     
-          cmd_takeSphoto();            //Take serial photo and send it
-      }
-          //  Take a photo using the SPI c329 camera and place file name in Queue
-          //  Hardware Note: to use the Spi camera - a jumper must be connected from IO0
-          //  the the hold pin on J6.......
-      if (State == 1){
-          cmd_takeSpiphoto();         //Take SPI photo and send it
-      }
-          //  no camera - Send a 30k of buffer datta in place of a photo to the output Queue.                 change to no photo ->void dataappend(int counts,int ampli,int SiPM,int Deadtime) {          //entry, add line with values to databuffer
-      if (State == 2){
-          nophoto30K();               //Use photo buffer for data
-      }
-          //  no camera - send just text appended with data to the output Queue
-      if (State == 3){
-          nophotophoto();               //photo event with no photo just to transfer data
-      }
-      State++;                          //go to the next state
-      if (State == 4){                  //reset the state back to 0
-        State = 0;                      //state to 0
+          Serial.pritntln("One day has passed.");     
+          nophotophoto();            //Take serial photo and send it
+          counter++;
+          State++;
       }
     }                                               //end of TimeEvent1_time
     //------------------------------------------------------------------

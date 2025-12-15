@@ -72,7 +72,7 @@ Files Required to make a complete program -
 #define OneDayPass     ((one_sec * 24) / SpeedFactor)
 
 //
-  int sensor1count = 0;     //counter of times the sensor has been accessed
+  int sensor1count = 0;     //counter of times the pH sensor has been accessed
   int State =   0;          //FOR TESTING ONLY WILL SWITCH FROM SPI CAMERA TO SERIAL CAMERA EVERY HOUR 
   int counter = 0;
   Ezo_board PH = Ezo_board(100, "PH");       //create a PH circuit object, who's address is 99 and name is "PH"
@@ -89,6 +89,9 @@ Files Required to make a complete program -
 //
 void Flying() {
   //
+  Wire.begin();
+  pH_Seq.reset();
+
   Serial.println("\n\rRun flight program\n\r");
 
   pinMode(bothPumps, OUTPUT);
@@ -143,6 +146,7 @@ void Flying() {
 delay(one_day / SpeedFactor); //24 hour wait before project
 
   while (1) {
+      pH_Seq.run();
     //
     //----------- Test for terminal abort command (x) from flying ----------------------
     //
@@ -164,7 +168,7 @@ delay(one_day / SpeedFactor); //24 hour wait before project
           //  Take a photo using the serial c329 camera and place file name in Queue
       if (State == 0){      //which state ?     
           Serial.pritntln("One day has passed.");     
-          nophotophoto();            //Take serial photo and send it
+          nophoto30K();            //Take serial photo and send it
           counter++;
           Serial.println("Starting to pump now.");
           digitalWrite(13, HIGH); //turn on pump1(double check the pin if they are correctly labelled)
@@ -180,7 +184,7 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     //
     if ((millis() - DataCollection1) > FirstDataCollection) {//pump broth into chambers ONCE and turn on both buzzers ONCE for 10 seconds
       DataCollection1 = millis();                    //yes is time now reset TimeEvent2
-      nophotophoto(); //every hour take nophotophoto
+      nophoto30K(); //every hour take nophotophoto
     }                                               //end of TimeEvent2_time
     //------------------------------------------------------------------
     if ((millis() - DataCollection2) > SecondDataCollection) {//pH sensor readings for each chamber and take nophoto 
@@ -211,6 +215,11 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     if ((millis() - one_secTimer) > one_sec) {      //one sec counter
       one_secTimer = millis();                      //reset one second timer
       DotStarYellow();                              //turn on Yellow DotStar to Blink for running
+      sensor1count++;
+      int pH_int = (int)(current_pH );  // Convert pH to integer (×1000 for 3 decimals)
+      int EC_int = (int)(current_EC);  // Convert EC to integer (×1000 for 3 decimals)
+      int uptime_sec = millis() / 1000;       // Mission uptime in seconds
+      dataappend(sensor1count, pH_int, EC_int, uptime_sec);
       //
 //****************** NO_NO_NO_NO_NO_NO_NO_NO_NO_NO_NO_ *************************
 // DO NOT TOUCH THIS CODE IT IS NECESARY FOR PROPER MISSION CLOCK OPERATIONS

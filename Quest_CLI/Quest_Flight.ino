@@ -73,10 +73,11 @@ Files Required to make a complete program -
 
 //
   int sensor1count = 0;     //counter of times the sensor has been accessed
-  int State =   0;          //FOR TESTING ONLY WILL SWITCH FROM SPI CAMERA TO SERIAL CAMERA EVERY HOUR
-  bool pumpActivated = false;  
-  bool buzzerActivated = false;  
+  int State =   0;          //FOR TESTING ONLY WILL SWITCH FROM SPI CAMERA TO SERIAL CAMERA EVERY HOUR 
   int counter = 0;
+  Ezo_board PH = Ezo_board(100, "PH");       //create a PH circuit object, who's address is 99 and name is "PH"
+  Ezo_board EC = Ezo_board(99, "EC");      //create an EC circuit object who's address is 100 and name is "EC"
+
 //
 ///////////////////////////////////////////////////////////////////////////
 /**
@@ -165,6 +166,8 @@ delay(one_day / SpeedFactor); //24 hour wait before project
           Serial.pritntln("One day has passed.");     
           nophotophoto();            //Take serial photo and send it
           counter++;
+          Serial.println("Starting to pump now.");
+          digitalWrite(13, HIGH); //turn on pump1(double check the pin if they are correctly labelled)
           State++;
       }
     }                                               //end of TimeEvent1_time
@@ -175,24 +178,29 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     //  this test if TimeEvent2 time has come
     //  See above for TimeEvent2_time settings between this event
     //
-    if ((millis() - TimeEvent2) > TimeEvent2_time) {//pump broth into chambers ONCE and turn on both buzzers ONCE for 10 seconds
-      TimeEvent2 = millis();                    //yes is time now reset TimeEvent2
-      digitalWrite(13, HIGH); //turn on pump1(double check the pin if they are correctly labelled)
-      digitalWrite(13, LOW);  //turn pump1 off(double check the pin if they are correctly labelled)
-      digitalWrite(12, HIGH); //turn on BOTH buzzers 
-      digitalWrite(12, LOW);  //stop BOTH buzzers
+    if ((millis() - DataCollection1) > FirstDataCollection) {//pump broth into chambers ONCE and turn on both buzzers ONCE for 10 seconds
+      DataCollection1 = millis();                    //yes is time now reset TimeEvent2
+      nophotophoto(); //every hour take nophotophoto
     }                                               //end of TimeEvent2_time
     //------------------------------------------------------------------
-    if ((millis() - TimeEvent3) > TimeEvent3_time) {//pH sensor readings for each chamber and take nophoto 
-      TimeEvent3 = millis();                    //yes is time now reset TimeEvent3
-      // digitalWrite(1, HIGH); 
-      // delay(1000);                         [this is just example code]
-      // analogWrite(A0, 4750);
+    if ((millis() - DataCollection2) > SecondDataCollection) {//pH sensor readings for each chamber and take nophoto 
+      DataCollection2 = millis();                    //yes is time now reset TimeEvent3
+      if (State == 1){
+        digitalWrite(13, LOW);  //turn pump off(double check the pin if they are correctly labelled)
+        Serial.println("Turning off pump now.");
+        digitalWrite(12, HIGH); //turn on BOTH buzzers 
+        Serial.println("Starting buzzers now.");
+        State++;
+      }
     }
     //------------------------------------------------------------------
-    if ((millis() - TimeEvent4) > TimeEvent4_time) {
-      TimeEvent4 = millis();                    //yes is time now reset TimeEvent4
-
+    if ((millis() - DataCollection3) > ThirdDataCollection) {
+      DataCollection3 = millis();                    //yes is time now reset TimeEvent4
+      if (State == 2){
+        digitalWrite(12, LOW); //turn off BOTH buzzers 
+        Serial.println("Turning off buzzers now.");  
+        State++;
+      }
     }
 
 //*******************************************************************************

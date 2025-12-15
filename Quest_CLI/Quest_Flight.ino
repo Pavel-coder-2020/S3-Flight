@@ -219,6 +219,12 @@ delay(one_day / SpeedFactor); //24 hour wait before project
       int pH_int = (int)(current_pH );  // Convert pH to integer (×1000 for 3 decimals)
       int EC_int = (int)(current_EC);  // Convert EC to integer (×1000 for 3 decimals)
       int uptime_sec = millis() / 1000;       // Mission uptime in seconds
+      PH.send_read_cmd();                     
+      EC.send_read_cmd();
+      Serial.print("pH: ");
+      Serial.print(current_pH);
+      Serial.print("   EC: ");
+      Serial.println(current_EC);
       dataappend(sensor1count, pH_int, EC_int, uptime_sec);
       //
 //****************** NO_NO_NO_NO_NO_NO_NO_NO_NO_NO_NO_ *************************

@@ -78,6 +78,14 @@ Files Required to make a complete program -
   Ezo_board PH = Ezo_board(100, "PH");       //create a PH circuit object, who's address is 99 and name is "PH"
   Ezo_board EC = Ezo_board(99, "EC");      //create an EC circuit object who's address is 100 and name is "EC"
 
+  float current_pH = 0.0;  //ADDED: store current pH reading
+  float current_EC = 0.0;  //ADDED: store current EC reading
+
+  //ADDED: forward declarations for pH sensor functions
+  void ph_step1();
+  void ph_step2();
+  Sequencer2 pH_Seq(&ph_step1, 1000, &ph_step2, 0);  //ADDED: sequencer for pH readings
+
 //
 ///////////////////////////////////////////////////////////////////////////
 /**
@@ -89,8 +97,8 @@ Files Required to make a complete program -
 //
 void Flying() {
   //
-  Wire.begin();
-  pH_Seq.reset();
+  Wire.begin();  //ADDED: start I2C for pH sensors
+  pH_Seq.reset();  //ADDED: initialize pH sequencer
 
   Serial.println("\n\rRun flight program\n\r");
 
@@ -146,7 +154,7 @@ void Flying() {
 delay(one_day / SpeedFactor); //24 hour wait before project
 
   while (1) {
-      pH_Seq.run();
+      pH_Seq.run();  //ADDED: run pH sensor sequencer continuously
     //
     //----------- Test for terminal abort command (x) from flying ----------------------
     //
@@ -167,11 +175,11 @@ delay(one_day / SpeedFactor); //24 hour wait before project
       OneDay = millis();                    //yes is time now reset TimeEvent1
           //  Take a photo using the serial c329 camera and place file name in Queue
       if (State == 0){      //which state ?     
-          Serial.pritntln("One day has passed.");     
+          Serial.println("One day has passed.");     
           nophoto30K();            //Take serial photo and send it
           counter++;
           Serial.println("Starting to pump now.");
-          digitalWrite(13, HIGH); //turn on pump1(double check the pin if they are correctly labelled)
+          digitalWrite(bothPumps, HIGH); //turn on pump1(double check the pin if they are correctly labelled)
           State++;
       }
     }                                               //end of TimeEvent1_time
@@ -190,9 +198,9 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     if ((millis() - DataCollection2) > SecondDataCollection) {//pH sensor readings for each chamber and take nophoto 
       DataCollection2 = millis();                    //yes is time now reset TimeEvent3
       if (State == 1){
-        digitalWrite(13, LOW);  //turn pump off(double check the pin if they are correctly labelled)
+        digitalWrite(bothPumps, LOW);  //turn pump off(double check the pin if they are correctly labelled)
         Serial.println("Turning off pump now.");
-        digitalWrite(12, HIGH); //turn on BOTH buzzers 
+        digitalWrite(bothVibrationMotor, HIGH); //turn on BOTH buzzers 
         Serial.println("Starting buzzers now.");
         State++;
       }
@@ -201,7 +209,7 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     if ((millis() - DataCollection3) > ThirdDataCollection) {
       DataCollection3 = millis();                    //yes is time now reset TimeEvent4
       if (State == 2){
-        digitalWrite(12, LOW); //turn off BOTH buzzers 
+        digitalWrite(bothVibrationMotor, LOW); //turn off BOTH buzzers 
         Serial.println("Turning off buzzers now.");  
         State++;
       }
@@ -215,17 +223,19 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     if ((millis() - one_secTimer) > one_sec) {      //one sec counter
       one_secTimer = millis();                      //reset one second timer
       DotStarYellow();                              //turn on Yellow DotStar to Blink for running
+      
+      //ADDED: pH/EC data logging every second
       sensor1count++;
-      int pH_int = (int)(current_pH );  // Convert pH to integer (×1000 for 3 decimals)
-      int EC_int = (int)(current_EC);  // Convert EC to integer (×1000 for 3 decimals)
+      int pH_int = (int)(current_pH * 1000);  // Convert pH to integer (×1000 for 3 decimals)
+      int EC_int = (int)(current_EC * 1000);  // Convert EC to integer (×1000 for 3 decimals)
       int uptime_sec = millis() / 1000;       // Mission uptime in seconds
-      PH.send_read_cmd();                     
-      EC.send_read_cmd();
+      
       Serial.print("pH: ");
-      Serial.print(current_pH);
+      Serial.print(current_pH, 3);
       Serial.print("   EC: ");
-      Serial.println(current_EC);
-      dataappend(sensor1count, pH_int, EC_int, uptime_sec);
+      Serial.println(current_EC, 3);
+      
+      dataappend(sensor1count, pH_int, EC_int, uptime_sec);  //store pH/EC data to 30K buffer
       //
 //****************** NO_NO_NO_NO_NO_NO_NO_NO_NO_NO_NO_ *************************
 // DO NOT TOUCH THIS CODE IT IS NECESARY FOR PROPER MISSION CLOCK OPERATIONS
@@ -299,10 +309,33 @@ delay(one_day / SpeedFactor); //24 hour wait before project
 //       //
 //       dataappend(sensor2count, ampli, SiPM, Deadtime);
 //     }     // End of Sensor2Timer          
-//   }       // End of while 
-// }         //End nof Flighting
-// //
-// //
+  }       // End of while 
+}         //End nof Flighting
+//
+//
+//////////////////////////////////////////////////////////////////////////
+// ADDED: pH/EC SENSOR READING FUNCTIONS
+// step1: Request readings from both sensors
+// step2: Retrieve and store readings in current_pH and current_EC
+//////////////////////////////////////////////////////////////////////////
+void ph_step1(){
+  PH.send_read_cmd();                     
+  EC.send_read_cmd();
+}
+
+void ph_step2(){
+  PH.receive_read_cmd();
+  if (PH.get_error() == Ezo_board::SUCCESS) {
+    current_pH = PH.get_last_received_reading();
+  }
+  
+  EC.receive_read_cmd();
+  if (EC.get_error() == Ezo_board::SUCCESS) {
+    current_EC = EC.get_last_received_reading();
+  }
+}
+//////////////////////////////////////////////////////////////////////////
+//
 //FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 //    This is a function to adds three values to the user_text_buffer
 //    Written specificy for 2023-2024 Team F, Team B,

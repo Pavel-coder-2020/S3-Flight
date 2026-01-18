@@ -78,13 +78,12 @@ Files Required to make a complete program -
   Ezo_board PH = Ezo_board(100, "PH");       //create a PH circuit object, who's address is 99 and name is "PH"
   Ezo_board EC = Ezo_board(99, "EC");      //create an EC circuit object who's address is 100 and name is "EC"
 
-  float current_pH = 0.0;  //ADDED: store current pH reading
-  float current_EC = 0.0;  //ADDED: store current EC reading
+  float current_pH = 0.0;
+  float current_EC = 0.0;
 
-  //ADDED: forward declarations for pH sensor functions
   void ph_step1();
   void ph_step2();
-  Sequencer2 pH_Seq(&ph_step1, 1000, &ph_step2, 0);  //ADDED: sequencer for pH readings
+  Sequencer2 pH_Seq(&ph_step1, 1000, &ph_step2, 0);
 
 //
 ///////////////////////////////////////////////////////////////////////////
@@ -97,8 +96,8 @@ Files Required to make a complete program -
 //
 void Flying() {
   //
-  Wire.begin();  //ADDED: start I2C for pH sensors
-  pH_Seq.reset();  //ADDED: initialize pH sequencer
+  Wire.begin();
+  pH_Seq.reset();
 
   Serial.println("\n\rRun flight program\n\r");
 
@@ -154,7 +153,7 @@ void Flying() {
 delay(one_day / SpeedFactor); //24 hour wait before project
 
   while (1) {
-      pH_Seq.run();  //ADDED: run pH sensor sequencer continuously
+      pH_Seq.run();
     //
     //----------- Test for terminal abort command (x) from flying ----------------------
     //
@@ -313,11 +312,6 @@ delay(one_day / SpeedFactor); //24 hour wait before project
 }         //End nof Flighting
 //
 //
-//////////////////////////////////////////////////////////////////////////
-// ADDED: pH/EC SENSOR READING FUNCTIONS
-// step1: Request readings from both sensors
-// step2: Retrieve and store readings in current_pH and current_EC
-//////////////////////////////////////////////////////////////////////////
 void ph_step1(){
   PH.send_read_cmd();                     
   EC.send_read_cmd();
@@ -327,14 +321,21 @@ void ph_step2(){
   PH.receive_read_cmd();
   if (PH.get_error() == Ezo_board::SUCCESS) {
     current_pH = PH.get_last_received_reading();
+    Serial.print("[pH Sensor] pH: ");
+    Serial.println(current_pH, 3);
+  } else {
+    Serial.println("[pH Sensor] ERROR reading pH");
   }
   
   EC.receive_read_cmd();
   if (EC.get_error() == Ezo_board::SUCCESS) {
     current_EC = EC.get_last_received_reading();
+    Serial.print("[EC Sensor] EC: ");
+    Serial.println(current_EC, 3);
+  } else {
+    Serial.println("[EC Sensor] ERROR reading EC");
   }
 }
-//////////////////////////////////////////////////////////////////////////
 //
 //FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 //    This is a function to adds three values to the user_text_buffer
@@ -405,8 +406,17 @@ void dataappend(int counts,int ampli,int SiPM,int Deadtime) {          //entry, 
   String results = " - " + String(counts) + " " + String(ampli) + " " + String(SiPM) + " " + String (Deadtime) + "\r\n";  //format databuffer entry
   const char* charValue1 = results.c_str();                               //convert to a C string value
   appendToBuffer(charValue1);                                             //Send formated string to databuff
-  //
-  //  Serial.println(databufferLength);                                   //print buffer length for testing only
+  
+  Serial.print("[DataAppend] Count:");
+  Serial.print(counts);
+  Serial.print(" pH:");
+  Serial.print(ampli);
+  Serial.print(" EC:");
+  Serial.print(SiPM);
+  Serial.print(" Uptime:");
+  Serial.print(Deadtime);
+  Serial.print(" BufferSize:");
+  Serial.println(databufferLength);
 }
 //-----------------------                                               //end dataappend
 //----- sub part od dataappend -- append to Buffer -----

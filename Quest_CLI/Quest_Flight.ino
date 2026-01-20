@@ -38,10 +38,10 @@ Files Required to make a complete program -
 
 #include "Quest_Flight.h"
 #include "Quest_CLI.h"
-#include <sequencer2.h>         //double check if you need this
-#include <Wire.h>                //double check if you need this   
-#include <Ezo_i2c.h>             //double check if you need this   
-#include <Ezo_i2c_util.h>       //double check if you need this  
+#include <sequencer2.h>
+#include <Wire.h>
+#include <Ezo_i2c.h>
+#include <Ezo_i2c_util.h>
 #define bothPumps IO7
 #define bothVibrationMotor IO6
 
@@ -52,7 +52,7 @@ Files Required to make a complete program -
 //  Fast clock --- 1 hour = 5 min = 1/12 of an  hour
 //     one millie -- 1ms
 //
-#define SpeedFactor 1    // = times faster -> DO NOT CHANGE FOR ISS; KEEP AT 1 UNLESS FOR TESTING
+#define SpeedFactor 3000    // = times faster -> DO NOT CHANGE FOR ISS; KEEP AT 1 UNLESS FOR TESTING
 //
 //
 //////////////////////////////////////////////////////////////////////////
@@ -64,10 +64,10 @@ Files Required to make a complete program -
 //
 //
 //#define TimeEvent1_time     ((one_hour * 12) / SpeedFactor)      //main expirement time(not sure if I need this)
-#define FirstDataCollection     ((one_sec * 90) / SpeedFactor)      // Take photo every hour
+#define FirstDataCollection     ((one_sec * 90) / SpeedFactor)      // Take photo every 90 seconds
 #define SecondDataCollection     ((one_sec * 90) / SpeedFactor)       // Initial activation after 24 hours
 #define ThirdDataCollection     ((one_sec * 90) / SpeedFactor)       // ph readings every 5 minutes
-#define PumpDuration        ((one_min * 1) / SpeedFactor)      // Time to run pumps
+#define PumpDuration        ((one_min) / SpeedFactor)      // Time to run pumps
 #define BuzzerDuration      ((one_sec * 15) / SpeedFactor)      // Time to run buzzers
 #define OneDayPass     ((one_sec * 24) / SpeedFactor)
 
@@ -75,15 +75,15 @@ Files Required to make a complete program -
   int sensor1count = 0;     //counter of times the pH sensor has been accessed
   int State =   0;          //FOR TESTING ONLY WILL SWITCH FROM SPI CAMERA TO SERIAL CAMERA EVERY HOUR 
   int counter = 0;
-  Ezo_board PH = Ezo_board(100, "PH");       //create a PH circuit object, who's address is 99 and name is "PH"
-  Ezo_board EC = Ezo_board(99, "EC");      //create an EC circuit object who's address is 100 and name is "EC"
+  Ezo_board PH = Ezo_board(100, "PH");       //create a PH circuit object, who's address is 100 and name is "PH"
+  Ezo_board EC = Ezo_board(99, "EC");      //create an EC circuit object who's address is 99 and name is "EC"
 
-  float current_pH = 0.0;
-  float current_EC = 0.0;
+  float current_pH = 0.0;  // ADDED: store current pH reading
+  float current_EC = 0.0;  // ADDED: store current EC reading
 
-  void ph_step1();
-  void ph_step2();
-  Sequencer2 pH_Seq(&ph_step1, 1000, &ph_step2, 0);
+  void ph_step1();  // ADDED: forward declaration
+  void ph_step2();  // ADDED: forward declaration
+  Sequencer2 pH_Seq(&ph_step1, 1000, &ph_step2, 0);  // ADDED: sequencer for pH readings
 
 //
 ///////////////////////////////////////////////////////////////////////////
@@ -96,8 +96,8 @@ Files Required to make a complete program -
 //
 void Flying() {
   //
-  Wire.begin();
-  pH_Seq.reset();
+  Wire.begin();  // ADDED: start I2C for pH sensors
+  pH_Seq.reset();  // ADDED: initialize pH sequencer
 
   Serial.println("\n\rRun flight program\n\r");
 
@@ -153,7 +153,7 @@ void Flying() {
 delay(one_day / SpeedFactor); //24 hour wait before project
 
   while (1) {
-      pH_Seq.run();
+      pH_Seq.run();  // ADDED: run pH sensor sequencer continuously
     //
     //----------- Test for terminal abort command (x) from flying ----------------------
     //
@@ -174,8 +174,15 @@ delay(one_day / SpeedFactor); //24 hour wait before project
       OneDay = millis();                    //yes is time now reset TimeEvent1
           //  Take a photo using the serial c329 camera and place file name in Queue
       if (State == 0){      //which state ?     
-          Serial.println("One day has passed.");     
-          nophoto30K();            //Take serial photo and send it
+          Serial.println("One day has passed.");
+          
+          // CHANGED: Add pH/EC data to text buffer BEFORE creating file
+          sensor1count++;
+          int pH_int = (int)(current_pH * 1000);  // Convert pH to integer (×1000 for 3 decimals)
+          int EC_int = (int)(current_EC * 1000);  // Convert EC to integer (×1000 for 3 decimals)
+          add2text(sensor1count, pH_int, EC_int);  // Add to USER TEXT buffer
+          
+          nophotophoto();  // CHANGED: Use nophotophoto() to create text file with USER TEXT
           counter++;
           Serial.println("Starting to pump now.");
           digitalWrite(bothPumps, HIGH); //turn on pump1(double check the pin if they are correctly labelled)
@@ -191,7 +198,14 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     //
     if ((millis() - DataCollection1) > FirstDataCollection) {//pump broth into chambers ONCE and turn on both buzzers ONCE for 10 seconds
       DataCollection1 = millis();                    //yes is time now reset TimeEvent2
-      nophoto30K(); //every hour take nophotophoto
+      
+      // CHANGED: Add pH/EC data to text buffer BEFORE creating file
+      sensor1count++;
+      int pH_int = (int)(current_pH * 1000);  // Convert pH to integer (×1000 for 3 decimals)
+      int EC_int = (int)(current_EC * 1000);  // Convert EC to integer (×1000 for 3 decimals)
+      add2text(sensor1count, pH_int, EC_int);  // Add to USER TEXT buffer
+      
+      nophotophoto();  // CHANGED: Use nophotophoto() to create text file with USER TEXT
     }                                               //end of TimeEvent2_time
     //------------------------------------------------------------------
     if ((millis() - DataCollection2) > SecondDataCollection) {//pH sensor readings for each chamber and take nophoto 
@@ -222,19 +236,6 @@ delay(one_day / SpeedFactor); //24 hour wait before project
     if ((millis() - one_secTimer) > one_sec) {      //one sec counter
       one_secTimer = millis();                      //reset one second timer
       DotStarYellow();                              //turn on Yellow DotStar to Blink for running
-      
-      //ADDED: pH/EC data logging every second
-      sensor1count++;
-      int pH_int = (int)(current_pH * 1000);  // Convert pH to integer (×1000 for 3 decimals)
-      int EC_int = (int)(current_EC * 1000);  // Convert EC to integer (×1000 for 3 decimals)
-      int uptime_sec = millis() / 1000;       // Mission uptime in seconds
-      
-      Serial.print("pH: ");
-      Serial.print(current_pH, 3);
-      Serial.print("   EC: ");
-      Serial.println(current_EC, 3);
-      
-      dataappend(sensor1count, pH_int, EC_int, uptime_sec);  //store pH/EC data to 30K buffer
       //
 //****************** NO_NO_NO_NO_NO_NO_NO_NO_NO_NO_NO_ *************************
 // DO NOT TOUCH THIS CODE IT IS NECESARY FOR PROPER MISSION CLOCK OPERATIONS
@@ -254,6 +255,7 @@ delay(one_day / SpeedFactor); //24 hour wait before project
       //
       //  This part prints out every second
       //
+      Serial.print("Time: ");  // ADDED: Print time label
       Serial.print(": Mission Clock = ");      //testing print mission clock
       Serial.print(readlongFromfram(CumUnix));        //mission clock
       Serial.print(" is ");                        //spacer
@@ -312,6 +314,11 @@ delay(one_day / SpeedFactor); //24 hour wait before project
 }         //End nof Flighting
 //
 //
+//////////////////////////////////////////////////////////////////////////
+// ADDED: pH/EC SENSOR READING FUNCTIONS
+// step1: Request readings from both sensors
+// step2: Retrieve and store readings in current_pH and current_EC
+//////////////////////////////////////////////////////////////////////////
 void ph_step1(){
   PH.send_read_cmd();                     
   EC.send_read_cmd();
@@ -321,21 +328,14 @@ void ph_step2(){
   PH.receive_read_cmd();
   if (PH.get_error() == Ezo_board::SUCCESS) {
     current_pH = PH.get_last_received_reading();
-    Serial.print("[pH Sensor] pH: ");
-    Serial.println(current_pH, 3);
-  } else {
-    Serial.println("[pH Sensor] ERROR reading pH");
   }
   
   EC.receive_read_cmd();
   if (EC.get_error() == Ezo_board::SUCCESS) {
     current_EC = EC.get_last_received_reading();
-    Serial.print("[EC Sensor] EC: ");
-    Serial.println(current_EC, 3);
-  } else {
-    Serial.println("[EC Sensor] ERROR reading EC");
   }
 }
+//////////////////////////////////////////////////////////////////////////
 //
 //FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 //    This is a function to adds three values to the user_text_buffer
@@ -377,9 +377,9 @@ void add2text(int value1,int value2,int value3){                 //Add value to 
         //
         strcat(user_text_buf0, (" - count= "));            // seperator
         strcat(user_text_buf0, (itoa(value1, ascii, 10)));
-        strcat(user_text_buf0, (", value2= "));
+        strcat(user_text_buf0, (", pH= "));  
         strcat(user_text_buf0, (itoa(value2, ascii, 10)));
-        strcat(user_text_buf0, (", value3= "));
+        strcat(user_text_buf0, (", EC= "));  
         strcat(user_text_buf0, (itoa(value3,  ascii, 10)));
         strcat(user_text_buf0, ("\r\n"));
 
@@ -406,17 +406,8 @@ void dataappend(int counts,int ampli,int SiPM,int Deadtime) {          //entry, 
   String results = " - " + String(counts) + " " + String(ampli) + " " + String(SiPM) + " " + String (Deadtime) + "\r\n";  //format databuffer entry
   const char* charValue1 = results.c_str();                               //convert to a C string value
   appendToBuffer(charValue1);                                             //Send formated string to databuff
-  
-  Serial.print("[DataAppend] Count:");
-  Serial.print(counts);
-  Serial.print(" pH:");
-  Serial.print(ampli);
-  Serial.print(" EC:");
-  Serial.print(SiPM);
-  Serial.print(" Uptime:");
-  Serial.print(Deadtime);
-  Serial.print(" BufferSize:");
-  Serial.println(databufferLength);
+  //
+  //  Serial.println(databufferLength);                                   //print buffer length for testing only
 }
 //-----------------------                                               //end dataappend
 //----- sub part od dataappend -- append to Buffer -----

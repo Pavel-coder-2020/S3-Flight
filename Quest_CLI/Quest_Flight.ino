@@ -4,34 +4,6 @@
 20231121
 Files Required to make a complete program - 
   CLI_V1.0, Quest_CLI.h, Quest_Flight.h, Quest_flight.cpp
-      Important Functions and their use:
-          cmd_takeSphot
-              This function will use the serial camera (the one with the cable) to take a photo (jpg)
-              on the transfer of this photo to the Host controller it will create a text file (txt)
-              with the same file name as the jpg file of the conditions of when the jpg was taken.
-              NOTE: add2text can be used with this command
-          cmd_takeSpiphoto
-              This function is for the SPI camera (the one that plugges directly on the microlab board)
-              it will take a jpg the same as the serial camera, also creating a txt file.  Also NOTE: the
-              add2text function can be used on the photo text file.
-          nophotophoto
-              if a camera is not being used, then this will simulate the camera photo operation. The text file 
-              is still created, so the add2text function can be used the get data downloaded in the text file
-          nophoto30K
-              this dois not use a camera, instead it uses the file space for the photo the containe ascii data
-              using dataappend function defined below.  The data will still have a jpg etension, but the file
-              will contain ascii of the data put in buy the dataappend unction. Plus a text file is generated,
-              and the add2text function will add more data.
-          -----
-          add2text(int value1,int value2,int value3)
-              this function will take the three varables and place them at the end of the text file (the file is
-              limited the 1024 charators),  if you look at the function the text output can be formatted is almost
-              any way.  Look at it and change it to acccomadate your data...
-          dataappend(int counts,int ampli,int SiPM,int Deadtime)
-              this function will add ascii data to the 30K byte data buffer that was used a a jpg photo.  look at
-              the data formating and change it necessary for you project information.  To view the data, you can
-              use a hex/ascii file viewer or change the ext to a txt.  then it should be viewable with a text exitor.
-.
 ******************************************************************************************                                   
 ******************************************************************************************                  
 */
@@ -42,286 +14,267 @@ Files Required to make a complete program -
 #include <Wire.h>
 #include <Ezo_i2c.h>
 #include <Ezo_i2c_util.h>
-#define bothPumps IO7
-#define bothVibrationMotor IO6
 
+// ONE PUMP - 4 wires to IO pins
+#define pumpIN_A IO2      // Pump IN terminal (positive side)
+#define pumpIN_B IO3      // Pump IN terminal (positive side)
+#define pumpOUT_A IO0     // Pump OUT terminal (negative side)
+#define pumpOUT_B IO1     // Pump OUT terminal (negative side)
+#define buzzer IO6        // Buzzer
 
 //////////////////////////////////////////////////////////////////////////
 //    This defines the timers used to control flight operations
 //////////////////////////////////////////////////////////////////////////
-//  Fast clock --- 1 hour = 5 min = 1/12 of an  hour
-//     one millie -- 1ms
-//
-#define SpeedFactor 3000    // = times faster -> DO NOT CHANGE FOR ISS; KEEP AT 1 UNLESS FOR TESTING
-//
-//
-//////////////////////////////////////////////////////////////////////////
-//
+#define SpeedFactor 1    // = times faster -> DO NOT CHANGE FOR ISS; KEEP AT 1 UNLESS FOR TESTING
+
 #define one_sec   1000                       //one second = 1000 millis
 #define one_min   60*one_sec                 // one minute of time
 #define one_hour  60*one_min                 // one hour of time
 #define one_day   24*one_hour               //one day of time
-//
-//
-//#define TimeEvent1_time     ((one_hour * 12) / SpeedFactor)      //main expirement time(not sure if I need this)
-#define FirstDataCollection     ((one_sec * 90) / SpeedFactor)      // Take photo every 90 seconds
-#define SecondDataCollection     ((one_sec * 90) / SpeedFactor)       // Initial activation after 24 hours
-#define ThirdDataCollection     ((one_sec * 90) / SpeedFactor)       // ph readings every 5 minutes
-#define PumpDuration        ((one_min) / SpeedFactor)      // Time to run pumps
-#define BuzzerDuration      ((one_sec * 15) / SpeedFactor)      // Time to run buzzers
-#define OneDayPass     ((one_sec * 24) / SpeedFactor)
 
-//
-  int sensor1count = 0;     //counter of times the pH sensor has been accessed
-  int State =   0;          //FOR TESTING ONLY WILL SWITCH FROM SPI CAMERA TO SERIAL CAMERA EVERY HOUR 
+// Pump and buzzer timing
+#define PumpForwardTime       ((one_sec * 7) / SpeedFactor)
+#define PumpReverseTime       ((one_sec * 15) / SpeedFactor)
+#define Buzzer1Time           ((one_sec * 10) / SpeedFactor)
+#define Buzzer2Time           ((one_sec * 30) / SpeedFactor)
+#define WaitTime              ((one_sec * 5) / SpeedFactor)
+#define BuzzerOnTime          ((one_sec * 15) / SpeedFactor)
+#define HourlyInterval        ((one_hour) / SpeedFactor)
+
+  int sensor1count = 0;
+  int State = 0;
   int counter = 0;
-  Ezo_board PH = Ezo_board(100, "PH");       //create a PH circuit object, who's address is 100 and name is "PH"
-  Ezo_board EC = Ezo_board(99, "EC");      //create an EC circuit object who's address is 99 and name is "EC"
+  int pumpSequenceState = 0;
+  Ezo_board PH = Ezo_board(100, "PH");  // Silver tip pH sensor at address 100
 
-  float current_pH = 0.0;  // ADDED: store current pH reading
-  float current_EC = 0.0;  // ADDED: store current EC reading
+  float current_pH = 0.0;
+  float current_EC = 0.0;  // Will always be 0 (no EC sensor)
 
-  void ph_step1();  // ADDED: forward declaration
-  void ph_step2();  // ADDED: forward declaration
-  Sequencer2 pH_Seq(&ph_step1, 1000, &ph_step2, 0);  // ADDED: sequencer for pH readings
+  void ph_step1();
+  void ph_step2();
+  void add2text(int value1, int value2, int value3);
+  void dataappend(int counts, int ampli, int SiPM, int Deadtime);
+  void appendToBuffer(const char* data);
+  void pumpForward();
+  void pumpReverse();
+  void pumpStop();
+  Sequencer2 pH_Seq(&ph_step1, 1000, &ph_step2, 0);
 
-//
-///////////////////////////////////////////////////////////////////////////
-/**
-   @brief Flying function is used to capture all logic of an experiment during flight.
-*/
-//************************************************************************
-//   Beginning of the flight program setup
-//
-//
 void Flying() {
-  //
-  Wire.begin();  // ADDED: start I2C for pH sensors
-  pH_Seq.reset();  // ADDED: initialize pH sequencer
+  Wire.begin();
+  pH_Seq.reset();
 
   Serial.println("\n\rRun flight program\n\r");
 
-  pinMode(bothPumps, OUTPUT);
-  pinMode(bothVibrationMotor, OUTPUT);
-  digitalWrite(bothPumps, LOW);    
-  digitalWrite(bothVibrationMotor, LOW);  
+  pinMode(pumpIN_A, OUTPUT);
+  pinMode(pumpIN_B, OUTPUT);
+  pinMode(pumpOUT_A, OUTPUT);
+  pinMode(pumpOUT_B, OUTPUT);
+  pinMode(buzzer, OUTPUT);
+  
+  pumpStop();
+  digitalWrite(buzzer, LOW);
 
-  //DataCollection1=noPhoto
-  //DataCollection2=buzzer+pump
-  //DataCollection3=pH readings
-  uint32_t DataCollection1 = millis();               //set TimeEvent1 to effective 0
-  uint32_t DataCollection2 = millis();             //clear sensor1Timer to effective 0
-  uint32_t DataCollection3 = millis();             //clear sensor1Timer to effective 0
-  uint32_t OneDay = millis();               //set TimeEvent1 to effective 0             //clear sensor1Timer to effective 0
-  uint32_t Sensor2Deadmillis = millis();        //clear mills for difference
-  //
-  uint32_t one_secTimer = millis();             //set happens every second
-  uint32_t sec60Timer = millis();               //set minute timer
+  uint32_t HourlyTimer = millis();
+  uint32_t BuzzerTimer = millis();
+  uint32_t SequenceTimer = millis();
+  uint32_t PHReadingTimer = millis();
+  bool buzzerIsOn = false;
+  bool phReadingInProgress = false;
+  uint32_t Sensor2Deadmillis = millis();
+  uint32_t one_secTimer = millis();
+  uint32_t sec60Timer = millis();
 
-  //*****************************************************************
-  //   Here to set up flight conditions i/o pins, atod, and other special condition
-  //   of your program
-  //
-  //
-  //
-  //******************************************************************
+  Serial.println("Flying NOW  -  x=abort");
+  Serial.println("Terminal must be reset after abort");
 
-  //------------ flying -----------------------
-
-  Serial.println("Flying NOW  -  x=abort");                 //terminal output for abort back to test
-  Serial.println("Terminal must be reset after abort");     //terminal reset requirement upon soft reset
-
-  missionMillis = millis();     //Set mission clock millis, you just entered flight conditions
-  //
-  //
-  /////////////////////////////////////////////////////
-  //----- Here to start a flight from a reset ---------
-  /////////////////////////////////////////////////////
-  //
-  DateTime now = rtc.now();                   //get time now
-  currentunix = (now.unixtime());             //get current unix time, don't count time not flying
-  writelongfram(currentunix, PreviousUnix);   //set fram Mission time start now counting seconds unix time
-  //
-  //***********************************************************************
-  //***********************************************************************
-  //  All Flight conditions are now set up,  NOW to enter flight operations
-  //
-  //***********************************************************************
-  //***********************************************************************
-  //
-
-delay(one_day / SpeedFactor); //24 hour wait before project
+  missionMillis = millis();
+  
+  DateTime now = rtc.now();
+  currentunix = (now.unixtime());
+  writelongfram(currentunix, PreviousUnix);
 
   while (1) {
-      pH_Seq.run();  // ADDED: run pH sensor sequencer continuously
-    //
-    //----------- Test for terminal abort command (x) from flying ----------------------
-    //
-    while (Serial.available()) {      //Abort flight program progress
-      byte x = Serial.read();         //get the input byte
-      if (x == 'x') {                 //check the byte for an abort x
-        return  ;                     //return back to poeration sellection
-      }                               //end check
-    }                                 //end abort check
-//------------------------------------------------------------------
-//
-//*********** Timed Event 1 test ***************************************
-//
-    //  this test if TimeEvent1 time has come
-    //  See above for TimeEvent1_time settings between this event
-    //
-    if ((millis() - OneDay) > OneDayPass) {
-      OneDay = millis();                    //yes is time now reset TimeEvent1
-          //  Take a photo using the serial c329 camera and place file name in Queue
-      if (State == 0){      //which state ?     
-          Serial.println("One day has passed.");
-          
-          // CHANGED: Add pH/EC data to text buffer BEFORE creating file
-          sensor1count++;
-          int pH_int = (int)(current_pH * 1000);  // Convert pH to integer (×1000 for 3 decimals)
-          int EC_int = (int)(current_EC * 1000);  // Convert EC to integer (×1000 for 3 decimals)
-          add2text(sensor1count, pH_int, EC_int);  // Add to USER TEXT buffer
-          
-          nophotophoto();  // CHANGED: Use nophotophoto() to create text file with USER TEXT
-          counter++;
-          Serial.println("Starting to pump now.");
-          digitalWrite(bothPumps, HIGH); //turn on pump1(double check the pin if they are correctly labelled)
-          State++;
-      }
-    }                                               //end of TimeEvent1_time
-    //------------------------------------------------------------------
-    //
- //*********** Timed Event 1 test ***************************************
-//
-    //  this test if TimeEvent2 time has come
-    //  See above for TimeEvent2_time settings between this event
-    //
-    if ((millis() - DataCollection1) > FirstDataCollection) {//pump broth into chambers ONCE and turn on both buzzers ONCE for 10 seconds
-      DataCollection1 = millis();                    //yes is time now reset TimeEvent2
-      
-      // CHANGED: Add pH/EC data to text buffer BEFORE creating file
-      sensor1count++;
-      int pH_int = (int)(current_pH * 1000);  // Convert pH to integer (×1000 for 3 decimals)
-      int EC_int = (int)(current_EC * 1000);  // Convert EC to integer (×1000 for 3 decimals)
-      add2text(sensor1count, pH_int, EC_int);  // Add to USER TEXT buffer
-      
-      nophotophoto();  // CHANGED: Use nophotophoto() to create text file with USER TEXT
-    }                                               //end of TimeEvent2_time
-    //------------------------------------------------------------------
-    if ((millis() - DataCollection2) > SecondDataCollection) {//pH sensor readings for each chamber and take nophoto 
-      DataCollection2 = millis();                    //yes is time now reset TimeEvent3
-      if (State == 1){
-        digitalWrite(bothPumps, LOW);  //turn pump off(double check the pin if they are correctly labelled)
-        Serial.println("Turning off pump now.");
-        digitalWrite(bothVibrationMotor, HIGH); //turn on BOTH buzzers 
-        Serial.println("Starting buzzers now.");
-        State++;
-      }
-    }
-    //------------------------------------------------------------------
-    if ((millis() - DataCollection3) > ThirdDataCollection) {
-      DataCollection3 = millis();                    //yes is time now reset TimeEvent4
-      if (State == 2){
-        digitalWrite(bothVibrationMotor, LOW); //turn off BOTH buzzers 
-        Serial.println("Turning off buzzers now.");  
-        State++;
-      }
+    while (Serial.available()) {
+      if (Serial.read() == 'x') return;
     }
 
-//*******************************************************************************
-//*********** One second counter timer will trigger every second ****************
-//*******************************************************************************
-    //  Here one sec timer - every second
-    //
-    if ((millis() - one_secTimer) > one_sec) {      //one sec counter
-      one_secTimer = millis();                      //reset one second timer
-      DotStarYellow();                              //turn on Yellow DotStar to Blink for running
-      //
-//****************** NO_NO_NO_NO_NO_NO_NO_NO_NO_NO_NO_ *************************
-// DO NOT TOUCH THIS CODE IT IS NECESARY FOR PROPER MISSION CLOCK OPERATIONS
-//    Mission clock timer
-//    FRAM keep track of cunlitive power on time
-//    and RTC with unix seconds
-//------------------------------------------------------------------------------
-      DateTime now = rtc.now();                           //get the time time,don't know how long away
-      currentunix = (now.unixtime());                     //get current unix time
-      Serial.print(currentunix); Serial.print(" ");      //testing print unix clock
-      uint32_t framdeltaunix = (currentunix - readlongFromfram(PreviousUnix)); //get delta sec of unix time
-      uint32_t cumunix = readlongFromfram(CumUnix);       //Get cumulative unix mission clock
-      writelongfram((cumunix + framdeltaunix), CumUnix);  //add and Save cumulative unix time Mission
-      writelongfram(currentunix, PreviousUnix);           //reset PreviousUnix to current for next time
-//
-//********* END_NO_END_NO_END_NO_END_NO_END_NO_END_NO_ **************************
-      //
-      //  This part prints out every second
-      //
-      Serial.print("Time: ");  // ADDED: Print time label
-      Serial.print(": Mission Clock = ");      //testing print mission clock
-      Serial.print(readlongFromfram(CumUnix));        //mission clock
-      Serial.print(" is ");                        //spacer
-      //
-      //------Output to the terminal  days hours min sec
-      //
+//------------------------------------------------------------------
+//*********** PUMP SEQUENCE (after 24h) ****************************
+//------------------------------------------------------------------
+
+    // STATE 0: Start Pump Forward (7 seconds)
+    if (millis() > one_hour * 24 && pumpSequenceState == 0) {
+      Serial.println("=== 24h 0m 0s: Pump FORWARD for 7 seconds ===");
+      pumpForward();
+      SequenceTimer = millis();
+      pumpSequenceState = 1;
+    }
+
+    // STATE 1→2: Stop pump, start buzzer #1 (10 seconds)
+    if (pumpSequenceState == 1 && (millis() - SequenceTimer) > PumpForwardTime) {
+      pumpStop();
+      Serial.println("=== 24h 0m 7s: Pump stopped. Buzzer ON for 10 seconds ===");
+      digitalWrite(buzzer, HIGH);
+      SequenceTimer = millis();
+      pumpSequenceState = 2;
+    }
+
+    // STATE 2→3: Stop buzzer, start wait (5 seconds)
+    if (pumpSequenceState == 2 && (millis() - SequenceTimer) > Buzzer1Time) {
+      digitalWrite(buzzer, LOW);
+      Serial.println("=== 24h 0m 17s: Buzzer OFF. Waiting 5 seconds ===");
+      SequenceTimer = millis();
+      pumpSequenceState = 3;
+    }
+
+    // STATE 3→4: Start Pump Reverse (15 seconds)
+    if (pumpSequenceState == 3 && (millis() - SequenceTimer) > WaitTime) {
+      Serial.println("=== 24h 0m 22s: Pump REVERSE for 15 seconds ===");
+      pumpReverse();
+      SequenceTimer = millis();
+      pumpSequenceState = 4;
+    }
+
+    // STATE 4→5: Stop pump, start buzzer #2 (30 seconds)
+    if (pumpSequenceState == 4 && (millis() - SequenceTimer) > PumpReverseTime) {
+      pumpStop();
+      Serial.println("=== 24h 0m 37s: Pump stopped. Buzzer ON for 30 seconds ===");
+      digitalWrite(buzzer, HIGH);
+      SequenceTimer = millis();
+      pumpSequenceState = 5;
+    }
+
+    // STATE 5→6: Stop buzzer, pump sequence complete
+    if (pumpSequenceState == 5 && (millis() - SequenceTimer) > Buzzer2Time) {
+      digitalWrite(buzzer, LOW);
+      Serial.println("=== 24h 1m 7s: Buzzer OFF. PUMP SEQUENCE COMPLETE ===");
+      Serial.println("pH sensor ready (silver tip at address 100). Ready for hourly readings.");
+      HourlyTimer = millis();
+      pumpSequenceState = 6;
+    }
+
+//------------------------------------------------------------------
+//*********** HOURLY CYCLE: Buzzer (15s) → pH Reading *************
+//------------------------------------------------------------------
+
+    if ((millis() - HourlyTimer) > HourlyInterval && pumpSequenceState == 6) {
+      HourlyTimer = millis();
+      
+      Serial.println("=== HOURLY CYCLE: Starting buzzer for 15 seconds ===");
+      digitalWrite(buzzer, HIGH);
+      buzzerIsOn = true;
+      BuzzerTimer = millis();
+    }
+    
+    if (buzzerIsOn && (millis() - BuzzerTimer) > BuzzerOnTime) {
+      digitalWrite(buzzer, LOW);
+      Serial.println("Buzzer OFF - Starting pH reading now");
+      buzzerIsOn = false;
+      
+      phReadingInProgress = true;
+      PHReadingTimer = millis();
+      pH_Seq.reset();
+      PH.send_read_cmd();
+    }
+    
+    if (phReadingInProgress && (millis() - PHReadingTimer) > 1000) {
+      Serial.println("DEBUG: Attempting to read pH sensor (address 100)...");
+      phReadingInProgress = false;
+      
+      PH.receive_read_cmd();
+      if (PH.get_error() == Ezo_board::SUCCESS) {
+        current_pH = PH.get_last_received_reading();
+        Serial.print("DEBUG: pH sensor SUCCESS - value: ");
+        Serial.println(current_pH, 3);
+      } else {
+        Serial.print("DEBUG: pH sensor ERROR - error code: ");
+        Serial.println(PH.get_error());
+      }
+      
+      // No EC sensor - always 0
+      current_EC = 0.0;
+      
+      sensor1count++;
+      int pH_int = (int)(current_pH * 1000);
+      int EC_int = 0;  // No EC sensor
+      add2text(sensor1count, pH_int, EC_int);
+      nophotophoto();
+      
+      Serial.print("pH reading #");
+      Serial.print(sensor1count);
+      Serial.print(" complete. pH=");
+      Serial.print(current_pH, 3);
+      Serial.println(" (No EC sensor)");
+    }
+
+//------------------------------------------------------------------
+//*********** One second counter timer ***************************
+//------------------------------------------------------------------
+
+    if ((millis() - one_secTimer) > one_sec) {
+      one_secTimer = millis();
+      DotStarYellow();
+      
+      DateTime now = rtc.now();
+      currentunix = (now.unixtime());
+      Serial.print(currentunix); Serial.print(" ");
+      uint32_t framdeltaunix = (currentunix - readlongFromfram(PreviousUnix));
+      uint32_t cumunix = readlongFromfram(CumUnix);
+      writelongfram((cumunix + framdeltaunix), CumUnix);
+      writelongfram(currentunix, PreviousUnix);
+      
+      Serial.print("Time: ");
+      Serial.print(": Mission Clock = ");
+      Serial.print(readlongFromfram(CumUnix));
+      Serial.print(" is ");
+      
       getmissionclk();
       Serial.print(xd); Serial.print(" Days  ");
       Serial.print(xh); Serial.print(" Hours  ");
       Serial.print(xm); Serial.print(" Min  ");
       Serial.print(xs); Serial.println(" Sec");
-      //
-      //
-       DotStarOff();
-    }  // end of one second routine
-//
-// //**********************************************************************
-// //*********** Read Sensor1 Event read and add to text buffer************
-// //**********************************************************************
-//     //
-//     if ((millis() - Sensor1Timer) > Sensor1time) {    //Is it time to read?
-//       Sensor1Timer = millis();                        //Yes, lets read the sensor1
-//       sensor1count++;
-//       int value1 = sensor1count;              //sensor count number up from zero
-//       int value2 = 55000;                     //SIMULATED SENSOR VALUE,need to calculate real value
-//       int value3 = 14;                        //SIMULATED SENSOR VALUE,need to calculate real value
-//       //
-//       add2text(value1, value2, value3);       //add the values to the text buffer
-//       //    
-//     }     // End of Sensor1 time event
-//     //
-// //**********************************************************************
-// //*********** Read Sensor2 Event read and add to text buffer************
-// //*********** Test of filling the 30K data buffer for lots of data *****
-// //********************************************************************** 
-//     //  If it is event driven then remove the Sensor2Timer evvvvvend 
-//     //  here to get the  data for the event 
-//     //
-//     if ((millis() - Sensor2Timer) > Sensor2time) {    //Is it time to read?
-//       Sensor2Timer = millis();                        //Yes, lets read the sensor1
-//       sensor2count++;
-//       //
-//       //  Here to calculate and store data
-//       //
-//       int Deadtime = millis()-Sensor2Deadmillis;      //time in millis sence last visit
-//       Sensor2Deadmillis = millis();                   //set millis this visit
-//       //
-//       //**** now get ampli and SiPM *****
-//       int ampli = 555;              //SIMULATED
-//       int SiPM  = 888;              //SIMULATED
-//       //***** end simulated *************
-//       //
-//       dataappend(sensor2count, ampli, SiPM, Deadtime);
-//     }     // End of Sensor2Timer          
-  }       // End of while 
-}         //End nof Flighting
-//
-//
+      
+      DotStarOff();
+    }
+  }
+}
+
 //////////////////////////////////////////////////////////////////////////
-// ADDED: pH/EC SENSOR READING FUNCTIONS
-// step1: Request readings from both sensors
-// step2: Retrieve and store readings in current_pH and current_EC
+// PUMP CONTROL FUNCTIONS
+//////////////////////////////////////////////////////////////////////////
+void pumpForward() {
+  // Forward: IN (IO2+IO3) HIGH, OUT (IO0+IO1) LOW
+  digitalWrite(pumpIN_A, HIGH);   // IO2 = HIGH
+  digitalWrite(pumpIN_B, HIGH);   // IO3 = HIGH
+  digitalWrite(pumpOUT_A, LOW);   // IO0 = LOW
+  digitalWrite(pumpOUT_B, LOW);   // IO1 = LOW
+  Serial.println("DEBUG: Pump FORWARD - IO2=HIGH, IO3=HIGH, IO0=LOW, IO1=LOW");
+}
+
+void pumpReverse() {
+  // Reverse: OUT (IO0+IO1) HIGH, IN (IO2+IO3) LOW
+  digitalWrite(pumpIN_A, LOW);    // IO2 = LOW
+  digitalWrite(pumpIN_B, LOW);    // IO3 = LOW
+  digitalWrite(pumpOUT_A, HIGH);  // IO0 = HIGH
+  digitalWrite(pumpOUT_B, HIGH);  // IO1 = HIGH
+  Serial.println("DEBUG: Pump REVERSE - IO0=HIGH, IO1=HIGH, IO2=LOW, IO3=LOW");
+}
+
+void pumpStop() {
+  // Stop: All pins LOW
+  digitalWrite(pumpIN_A, LOW);    // IO2 = LOW
+  digitalWrite(pumpIN_B, LOW);    // IO3 = LOW
+  digitalWrite(pumpOUT_A, LOW);   // IO0 = LOW
+  digitalWrite(pumpOUT_B, LOW);   // IO1 = LOW
+  Serial.println("DEBUG: Pump STOPPED - All pins LOW");
+}
+
+//////////////////////////////////////////////////////////////////////////
+// pH SENSOR READING FUNCTIONS (ONLY pH, NO EC)
 //////////////////////////////////////////////////////////////////////////
 void ph_step1(){
-  PH.send_read_cmd();                     
-  EC.send_read_cmd();
+  PH.send_read_cmd();
 }
 
 void ph_step2(){
@@ -329,101 +282,55 @@ void ph_step2(){
   if (PH.get_error() == Ezo_board::SUCCESS) {
     current_pH = PH.get_last_received_reading();
   }
-  
-  EC.receive_read_cmd();
-  if (EC.get_error() == Ezo_board::SUCCESS) {
-    current_EC = EC.get_last_received_reading();
-  }
 }
+
 //////////////////////////////////////////////////////////////////////////
-//
-//FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-//    This is a function to adds three values to the user_text_buffer
-//    Written specificy for 2023-2024 Team F, Team B,
-//    Enter the function with "add2text(1st interger value, 2nd intergre value, 3rd intergervalue);
-//    the " - value1 " text can be changed to lable the value or removed to same space
-//    ", value2 " and ", value 3 " masy also be removed or changed to a lable.
-//    Space availiable is 1024 bytes, Note- - each Data line has a ncarrage return and a line feed
-//
-//example of calling routine:
-//       //
-//      int value1 = 55;
-//      int value2 = 55000;
-//      int value3 = 14;
-//      add2text(value1, value2, value3);
-//      //
-//EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE     
-//
-void add2text(int value1,int value2,int value3){                 //Add value to text file
-        if (strlen(user_text_buf0) >= (sizeof(user_text_buf0)-100)){    //Check for full
-          Serial.println("text buffer full");                           //yes, say so
-          return;                                                       //back to calling
+// TEXT BUFFER FUNCTIONS
+//////////////////////////////////////////////////////////////////////////
+void add2text(int value1,int value2,int value3){
+        if (strlen(user_text_buf0) >= (sizeof(user_text_buf0)-100)){
+          Serial.println("text buffer full");
+          return;
         }
-        char temp[11];                  // Maximum number of digits for a 32-bit integer 
-        int index = 10;                 //Start from the end of the temperary buffer  
-        char str[12];                   //digits + null terminator   
-//--------- get time and convert to str for entry into text buffer ----
-        DateTime now = rtc.now();                   //get time of entry
-        uint32_t value = now.unixtime();            //get unix time from entry
+        char temp[11];
+        int index = 10;
+        char str[12];
+        
+        DateTime now = rtc.now();
+        uint32_t value = now.unixtime();
         do {
-            temp[index--] = '0' + (value % 10);     // Convert the least significant digit to ASCII
-            value /= 10;                            // Move to the next digit
+            temp[index--] = '0' + (value % 10);
+            value /= 10;
         } while (value != 0);
-        strcpy(str, temp + index +1);               // Copy the result to the output string
-//---------- end of time conversion uni time is now in str -------------       
-        strcat(user_text_buf0, (str));              //write unix time
-        //
-        // unit time finish entry into this data line
-        //
-        strcat(user_text_buf0, (" - count= "));            // seperator
+        strcpy(str, temp + index +1);
+        
+        strcat(user_text_buf0, (str));
+        strcat(user_text_buf0, (" - count= "));
         strcat(user_text_buf0, (itoa(value1, ascii, 10)));
         strcat(user_text_buf0, (", pH= "));  
         strcat(user_text_buf0, (itoa(value2, ascii, 10)));
         strcat(user_text_buf0, (", EC= "));  
         strcat(user_text_buf0, (itoa(value3,  ascii, 10)));
         strcat(user_text_buf0, ("\r\n"));
-
-        //Serial.println(strlen(user_text_buf0));  //for testing
- }
-//------end of Function to add to user text buffer ------       
-//
-//=============================================================================
-//
-////FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-//  Function to write into a 30K databuffer
-//    char databuffer[30000];         // Create a character buffer with a size of 2KB
-//    int databufferLength = 0;       // Initialize the buffer length
-//  Append data to the large data buffer buffer always enter unit time of data added
-//  enter: void dataappend(int counts, int ampli, int SiPM, int Deadtime) (4 values)
-//
-void dataappend(int counts,int ampli,int SiPM,int Deadtime) {          //entry, add line with values to databuffer
-  //----- get and set time to entry -----
-  DateTime now = rtc.now();                                               //get time of entry
-  String stringValue = String(now.unixtime());                            //convert unix time to string
-  const char* charValue = stringValue.c_str();                            //convert to a C string value
-  appendToBuffer(charValue);                                              //Sent unix time to databuffer
-  //----- add formated string to buffer -----
-  String results = " - " + String(counts) + " " + String(ampli) + " " + String(SiPM) + " " + String (Deadtime) + "\r\n";  //format databuffer entry
-  const char* charValue1 = results.c_str();                               //convert to a C string value
-  appendToBuffer(charValue1);                                             //Send formated string to databuff
-  //
-  //  Serial.println(databufferLength);                                   //print buffer length for testing only
 }
-//-----------------------                                               //end dataappend
-//----- sub part od dataappend -- append to Buffer -----
-//-----------------------
-void  appendToBuffer(const char* data) {                                   //enter with charator string to append
-  int dataLength = strlen(data);                                          //define the length of data to append
-      // ----- Check if there is enough space in the buffer                           //enough space?
-  if (databufferLength + dataLength < sizeof(databuffer)) {               //enouth space left in buffer
-      // ----- Append the data to the buffer
-    strcat(databuffer, data);                                             //yes enough space, add data to end of buffer
-    databufferLength += dataLength;                                       //change to length of the buffer
-  } else {
-    Serial.println("Buffer is full. Data not appended.");                 //Not enough space, say so on terminal
-  }       //end not enough space
-}         //end appendToBuffer
-//
 
-//=================================================================================================================
-//
+void dataappend(int counts,int ampli,int SiPM,int Deadtime) {
+  DateTime now = rtc.now();
+  String stringValue = String(now.unixtime());
+  const char* charValue = stringValue.c_str();
+  appendToBuffer(charValue);
+  
+  String results = " - " + String(counts) + " " + String(ampli) + " " + String(SiPM) + " " + String (Deadtime) + "\r\n";
+  const char* charValue1 = results.c_str();
+  appendToBuffer(charValue1);
+}
+
+void  appendToBuffer(const char* data) {
+  int dataLength = strlen(data);
+  if (databufferLength + dataLength < sizeof(databuffer)) {
+    strcat(databuffer, data);
+    databufferLength += dataLength;
+  } else {
+    Serial.println("Buffer is full. Data not appended.");
+  }
+}
